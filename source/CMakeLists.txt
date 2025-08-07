@@ -1,1 +1,2 @@
 add_subdirectory(doodle)
+add_subdirectory(example)
