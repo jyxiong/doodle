@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pass.h"
 #include "pass_node.h"
 #include "resource.h"
 #include "resource_node.h"
@@ -38,9 +39,15 @@ public:
     Builder &operator=(const Builder &) = delete;
     Builder &operator=(Builder &&) noexcept = delete;
 
-    template <Virtualizable T>
     /** Declares the creation of a resource. */
-    ResourceId create(const std::string_view name, const typename T::Desc &);
+    template <Virtualizable T>
+    ResourceId create(const std::string_view name,
+                                      const typename T::Desc &desc) {
+      const auto id = m_frameGraph._create<T>(ResourceEntry::Type::Transient,
+                                              name, desc, T{});
+      return m_passNode.m_creates.emplace_back(id);
+    }
+
     /** Declares read operation. */
     ResourceId read(ResourceId id);
     /**
@@ -66,24 +73,43 @@ public:
 
   void reserve(uint32_t numPasses, uint32_t numResources);
 
-  struct NoData {};
   /**
    * @param setup Callback (lambda, may capture by reference), invoked
    * immediately, declare operations here.
    * @param exec Execution of this lambda is deferred until execute() phase
    * (must capture by value due to this).
    */
-  template <typename Data = NoData, typename Setup, typename Execute>
+  template <typename Data, typename Setup, typename Execute>
   const Data &addCallbackPass(const std::string_view name, Setup &&setup,
-                              Execute &&exec);
+                              Execute &&exec) {
+    static_assert(std::is_invocable_v<Setup, Builder &, Data &>,
+                  "Invalid setup callback");
+    static_assert(
+        std::is_invocable_v<Execute, const Data &, PassResources &, void *>,
+        "Invalid exec callback");
+    static_assert(sizeof(Execute) < 1024, "Execute captures too much");
+
+    auto *pass = new FrameGraphPass<Data, Execute>(std::forward<Execute>(exec));
+    auto &passNode = _createPassNode(
+        name, std::unique_ptr<FrameGraphPass<Data, Execute>>(pass));
+    Builder builder{*this, passNode};
+    std::invoke(setup, builder, pass->data);
+    return pass->data;
+  }
 
   template <Virtualizable T>
-  const typename T::Desc &getDescriptor(ResourceId id) const;
+  const typename T::Desc &getDescriptor(ResourceId id) const {
+    return _getResourceEntry(id).getDescriptor<T>();
+  }
 
-  template <Virtualizable T>
   /** Imports the given resource T into FrameGraph. */
-  ResourceId import(const std::string_view name, const typename T::Desc &,
-                    T &&);
+
+  template <Virtualizable T>
+  ResourceId import(const std::string_view name, const typename T::Desc &desc,
+                    T &&resource) {
+    return _create<T>(ResourceEntry::Type::Imported, name, desc,
+                      std::forward<T>(resource));
+  }
 
   /** @return True if the given resource is valid for read/write operation. */
   bool isValid(ResourceId id) const;
@@ -98,8 +124,14 @@ private:
                             std::unique_ptr<FrameGraphPassConcept> &&);
 
   template <Virtualizable T>
-  ResourceId _create(const ResourceEntry::Type, const std::string_view name,
-                     const typename T::Desc &, T &&);
+  inline ResourceId _create(const ResourceEntry::Type type,
+                            const std::string_view name,
+                            const typename T::Desc &desc, T &&resource) {
+    const auto resourceId = static_cast<uint32_t>(m_resourceRegistry.size());
+    m_resourceRegistry.emplace_back(
+        ResourceEntry{type, resourceId, desc, std::forward<T>(resource)});
+    return _createResourceNode(name, resourceId).getId();
+  }
 
   ResourceNode &
   _createResourceNode(const std::string_view name, uint32_t resourceId,
@@ -113,7 +145,7 @@ private:
 
   ResourceNode &_getResourceNode(ResourceId id);
   ResourceEntry &_getResourceEntry(ResourceId id);
-  ResourceEntry &_getResourceEntry(const ResourceNode & node);
+  ResourceEntry &_getResourceEntry(const ResourceNode &node);
 
 private:
   std::vector<PassNode> m_passNodes;
@@ -131,17 +163,26 @@ public:
   ~PassResources() = default;
 
   PassResources &operator=(const PassResources &) = delete;
-  PassResources &
-  operator=(PassResources &&) noexcept = delete;
+  PassResources &operator=(PassResources &&) noexcept = delete;
 
   /**
    * @note Causes runtime-error with:
    * - Attempt to use obsolete handle (the one that has been renamed before)
    * - Incorrect resource type T
    */
-  template <Virtualizable T> T &get(ResourceId id);
+  template <Virtualizable T> 
+  T &get(ResourceId id) {
+    assert(m_passNode.reads(id) || m_passNode.creates(id) ||
+           m_passNode.writes(id));
+    return m_frameGraph._getResourceEntry(id).get<T>();
+  }
+
   template <Virtualizable T>
-  const typename T::Desc &getDescriptor(ResourceId id) const;
+  const typename T::Desc &getDescriptor(ResourceId id) const {
+    assert(m_passNode.reads(id) || m_passNode.creates(id) ||
+           m_passNode.writes(id));
+    return m_frameGraph.getDescriptor<T>(id);
+  }
 
 private:
   PassResources(FrameGraph &fg, const PassNode &node)
@@ -151,78 +192,3 @@ private:
   FrameGraph &m_frameGraph;
   const PassNode &m_passNode;
 };
-
-template <typename Data, typename Setup, typename Execute>
-inline const Data &FrameGraph::addCallbackPass(const std::string_view name,
-                                               Setup &&setup, Execute &&exec) {
-  static_assert(std::is_invocable_v<Setup, Builder &, Data &>,
-                "Invalid setup callback");
-  static_assert(std::is_invocable_v<Execute, const Data &,
-                                    PassResources &, void *>,
-                "Invalid exec callback");
-  static_assert(sizeof(Execute) < 1024, "Execute captures too much");
-
-  auto *pass = new FrameGraphPass<Data, Execute>(std::forward<Execute>(exec));
-  auto &passNode = _createPassNode(
-      name, std::unique_ptr<FrameGraphPass<Data, Execute>>(pass));
-  Builder builder{*this, passNode};
-  std::invoke(setup, builder, pass->data);
-  return pass->data;
-}
-
-template <Virtualizable T>
-inline const typename T::Desc &FrameGraph::getDescriptor(ResourceId id) const {
-  return _getResourceEntry(id).getDescriptor<T>();
-}
-
-template <Virtualizable T>
-inline ResourceId FrameGraph::import(const std::string_view name,
-                                     const typename T::Desc &desc,
-                                     T &&resource) {
-  return _create<T>(ResourceEntry::Type::Imported, name, desc,
-                    std::forward<T>(resource));
-}
-
-//
-// (private):
-//
-
-template <Virtualizable T>
-inline ResourceId
-FrameGraph::_create(const ResourceEntry::Type type, const std::string_view name,
-                    const typename T::Desc &desc, T &&resource) {
-  const auto resourceId = static_cast<uint32_t>(m_resourceRegistry.size());
-  m_resourceRegistry.emplace_back(
-      ResourceEntry{type, resourceId, desc, std::forward<T>(resource)});
-  return _createResourceNode(name, resourceId).getId();
-}
-
-//
-// FrameGraph::Builder class:
-//
-
-template <Virtualizable T>
-inline ResourceId FrameGraph::Builder::create(const std::string_view name,
-                                              const typename T::Desc &desc) {
-  const auto id =
-      m_frameGraph._create<T>(ResourceEntry::Type::Transient, name, desc, T{});
-  return m_passNode.m_creates.emplace_back(id);
-}
-
-//
-// PassResources class:
-//
-
-template <Virtualizable T>
-inline T &PassResources::get(ResourceId id) {
-  assert(m_passNode.reads(id) || m_passNode.creates(id) ||
-         m_passNode.writes(id));
-  return m_frameGraph._getResourceEntry(id).get<T>();
-}
-template <Virtualizable T>
-inline const typename T::Desc &
-PassResources::getDescriptor(ResourceId id) const {
-  assert(m_passNode.reads(id) || m_passNode.creates(id) ||
-         m_passNode.writes(id));
-  return m_frameGraph.getDescriptor<T>(id);
-}

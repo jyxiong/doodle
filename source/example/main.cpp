@@ -47,10 +47,16 @@ constexpr auto markAsExecuted = [](const auto &data,
                                    const PassResources &,
                                    void *) { data.executed = true; };
 
+struct NoData
+{
+
+};
+
 void test0() {
   FrameGraph fg;
-  fg.addCallbackPass(
-      "Dummy", [](const FrameGraph::Builder &, auto &) {},
+  fg.addCallbackPass<NoData>(
+      "Dummy",
+      [](const FrameGraph::Builder &, auto &) {},
       [](const auto &, const PassResources &, void *) {});
 
   return;
