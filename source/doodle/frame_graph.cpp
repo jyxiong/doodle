@@ -11,7 +11,7 @@ void FrameGraph::reserve(uint32_t numPasses, uint32_t numResources) {
   m_resourceRegistry.reserve(numResources);
 }
 
-bool FrameGraph::isValid(FrameGraphResource id) const {
+bool FrameGraph::isValid(ResourceId id) const {
   const auto &node = _getResourceNode(id);
   return node.getVersion() == _getResourceEntry(node).getVersion();
 }
@@ -75,14 +75,6 @@ void FrameGraph::execute(void *context, void *allocator) {
     for (const auto id : pass.m_creates)
       _getResourceEntry(id).create(allocator);
 
-    for (const auto [id, flags] : pass.m_reads) {
-      if (flags != kFlagsIgnored)
-        _getResourceEntry(id).preRead(flags, context);
-    }
-    for (const auto [id, flags] : pass.m_writes) {
-      if (flags != kFlagsIgnored)
-        _getResourceEntry(id).preWrite(flags, context);
-    }
     FrameGraphPassResources resources{*this, pass};
     std::invoke(*pass.m_exec, resources, context);
 
@@ -111,7 +103,7 @@ ResourceNode &FrameGraph::_createResourceNode(const std::string_view name,
   return m_resourceNodes.emplace_back(
       ResourceNode{name, id, resourceId, version});
 }
-FrameGraphResource FrameGraph::_clone(FrameGraphResource id) {
+ResourceId FrameGraph::_clone(ResourceId id) {
   const auto &node = _getResourceNode(id);
   auto &entry = _getResourceEntry(node);
   entry.m_version++;
@@ -121,12 +113,12 @@ FrameGraphResource FrameGraph::_clone(FrameGraphResource id) {
   return clone.getId();
 }
 
-const ResourceNode &FrameGraph::_getResourceNode(FrameGraphResource id) const {
+const ResourceNode &FrameGraph::_getResourceNode(ResourceId id) const {
   assert(id < m_resourceNodes.size());
   return m_resourceNodes[id];
 }
 const ResourceEntry &
-FrameGraph::_getResourceEntry(FrameGraphResource id) const {
+FrameGraph::_getResourceEntry(ResourceId id) const {
   return _getResourceEntry(_getResourceNode(id));
 }
 const ResourceEntry &
@@ -139,12 +131,12 @@ FrameGraph::_getResourceEntry(const ResourceNode &node) const {
 // FrameGraph::Builder class:
 //
 
-FrameGraphResource FrameGraph::Builder::read(FrameGraphResource id,
+ResourceId FrameGraph::Builder::read(ResourceId id,
                                              uint32_t flags) {
   assert(m_frameGraph.isValid(id));
   return m_passNode._read(id, flags);
 }
-FrameGraphResource FrameGraph::Builder::write(FrameGraphResource id,
+ResourceId FrameGraph::Builder::write(ResourceId id,
                                               uint32_t flags) {
   assert(m_frameGraph.isValid(id));
   if (m_frameGraph._getResourceEntry(id).isImported())

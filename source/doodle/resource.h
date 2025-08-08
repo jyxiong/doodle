@@ -1,26 +1,10 @@
 #pragma once
 
 #include <cassert>
-#include <concepts>
 #include <memory>
 #include <string>
-#include <string_view>
 
 #include "pass_node.h"
-
-template <typename T>
-concept has_preRead = requires(T t) {
-  { t.preRead(typename T::Desc{}, 0u, (void *)nullptr) } -> std::same_as<void>;
-};
-template <typename T>
-concept has_preWrite = requires(T t) {
-  { t.preWrite(typename T::Desc{}, 0u, (void *)nullptr) } -> std::same_as<void>;
-};
-
-template <typename T>
-concept has_toString = requires() {
-  { T::toString(typename T::Desc{}) } -> std::convertible_to<std::string_view>;
-};
 
 // Wrapper around a virtual resource.
 class ResourceEntry final {
@@ -38,17 +22,8 @@ public:
 
   static constexpr auto kInitialVersion{1u};
 
-  [[nodiscard]] auto toString() const { return m_concept->toString(); }
-
   void create(void *allocator);
   void destroy(void *allocator);
-
-  void preRead(uint32_t flags, void *context) {
-    m_concept->preRead(flags, context);
-  }
-  void preWrite(uint32_t flags, void *context) {
-    m_concept->preWrite(flags, context);
-  }
 
   [[nodiscard]] auto getId() const { return m_id; }
   [[nodiscard]] auto getVersion() const { return m_version; }
@@ -71,28 +46,12 @@ private:
 
     virtual void create(void *) = 0;
     virtual void destroy(void *) = 0;
-
-    virtual void preRead(uint32_t flags, void *) = 0;
-    virtual void preWrite(uint32_t flags, void *) = 0;
-
-    virtual std::string toString() const = 0;
   };
   template <typename T> struct Model final : Concept {
     Model(const typename T::Desc &, T &&);
 
     void create(void *allocator) override;
     void destroy(void *allocator) override;
-
-    void preRead(uint32_t flags, void *context) override {
-      if constexpr (has_preRead<T>)
-        resource.preRead(descriptor, flags, context);
-    }
-    void preWrite(uint32_t flags, void *context) override {
-      if constexpr (has_preWrite<T>)
-        resource.preWrite(descriptor, flags, context);
-    }
-
-    std::string toString() const override;
 
     const typename T::Desc descriptor;
     T resource;
@@ -164,10 +123,3 @@ inline void ResourceEntry::Model<T>::destroy(void *allocator) {
   resource.destroy(descriptor, allocator);
 }
 
-template <typename T>
-inline std::string ResourceEntry::Model<T>::toString() const {
-  if constexpr (has_toString<T>)
-    return T::toString(descriptor);
-  else
-    return "";
-}

@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <fstream>
 #include <stdexcept>
 
 #include "frame_graph.h"
@@ -41,8 +40,6 @@ struct FrameGraphTexture {
     CHECK(false);
   }
 
-  static const char *toString(const Desc &) { return "<I>texture</I>"; }
-
   int32_t id{-1};
 };
 
@@ -63,8 +60,8 @@ void test1() {
   FrameGraph fg;
 
   struct TestPass {
-    FrameGraphResource foo;
-    FrameGraphResource bar;
+    ResourceId foo;
+    ResourceId bar;
     mutable bool executed{false};
   };
   auto &testPass = fg.addCallbackPass<TestPass>(
@@ -104,7 +101,7 @@ void test2() {
   REQUIRE(fg.isValid(backbuffer));
 
   struct TestPass {
-    FrameGraphResource backbuffer;
+    ResourceId backbuffer;
     mutable bool executed{false};
   };
   auto &testPass = fg.addCallbackPass<TestPass>(
@@ -133,7 +130,7 @@ void test3() {
   FrameGraph fg;
 
   struct PassData {
-    FrameGraphResource foo;
+    ResourceId foo;
     mutable bool executed{false};
   };
   auto &pass1 = fg.addCallbackPass<PassData>(
@@ -191,7 +188,7 @@ void test5() {
   const auto &desc = fg.getDescriptor<FrameGraphTexture>(backbufferId);
 
   struct DepthPass {
-    FrameGraphResource depth;
+    ResourceId depth;
     mutable bool executed{false};
   };
   auto &depthPass = fg.addCallbackPass<DepthPass>(
@@ -203,10 +200,10 @@ void test5() {
       markAsExecuted);
 
   struct GBufferPass {
-    FrameGraphResource depth;
-    FrameGraphResource position;
-    FrameGraphResource normal;
-    FrameGraphResource albedo;
+    ResourceId depth;
+    ResourceId position;
+    ResourceId normal;
+    ResourceId albedo;
 
     mutable bool executed{false};
   };
@@ -227,10 +224,10 @@ void test5() {
       markAsExecuted);
 
   struct LightingPass {
-    FrameGraphResource position;
-    FrameGraphResource normal;
-    FrameGraphResource albedo;
-    FrameGraphResource output;
+    ResourceId position;
+    ResourceId normal;
+    ResourceId albedo;
+    ResourceId output;
     mutable bool executed{false};
   };
   auto &lightingPass = fg.addCallbackPass<LightingPass>(

@@ -5,12 +5,12 @@
 
 namespace {
 
-[[nodiscard]] bool hasId(const std::vector<FrameGraphResource> &v,
-                         FrameGraphResource id) {
+[[nodiscard]] bool hasId(const std::vector<ResourceId> &v,
+                         ResourceId id) {
   return std::ranges::find(v, id) != v.cend();
 }
 [[nodiscard]] bool hasId(const std::vector<PassNode::AccessDeclaration> &v,
-                         FrameGraphResource id) {
+                         ResourceId id) {
   const auto match = [id](const auto &e) { return e.id == id; };
   return std::ranges::find_if(v, match) != v.cend();
 }
@@ -22,13 +22,13 @@ namespace {
 
 } // namespace
 
-bool PassNode::creates(FrameGraphResource id) const {
+bool PassNode::creates(ResourceId id) const {
   return hasId(m_creates, id);
 }
 
-bool PassNode::reads(FrameGraphResource id) const { return hasId(m_reads, id); }
+bool PassNode::reads(ResourceId id) const { return hasId(m_reads, id); }
 
-bool PassNode::writes(FrameGraphResource id) const {
+bool PassNode::writes(ResourceId id) const {
   return hasId(m_writes, id);
 }
 
@@ -40,14 +40,14 @@ PassNode::PassNode(const std::string_view name, uint32_t nodeId,
   m_writes.reserve(10);
 }
 
-FrameGraphResource PassNode::_read(FrameGraphResource id, uint32_t flags) {
+ResourceId PassNode::_read(ResourceId id, uint32_t flags) {
   assert(!creates(id) && !writes(id));
   return contains(m_reads, {id, flags})
              ? id
              : m_reads.emplace_back(AccessDeclaration{id, flags}).id;
 }
 
-FrameGraphResource PassNode::_write(FrameGraphResource id, uint32_t flags) {
+ResourceId PassNode::_write(ResourceId id, uint32_t flags) {
   return contains(m_writes, {id, flags})
              ? id
              : m_writes.emplace_back(AccessDeclaration{id, flags}).id;
