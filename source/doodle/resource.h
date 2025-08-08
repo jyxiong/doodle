@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <memory>
-#include <string>
 
 #include "pass_node.h"
 
@@ -25,14 +24,14 @@ public:
   void create(void *allocator);
   void destroy(void *allocator);
 
-  [[nodiscard]] auto getId() const { return m_id; }
-  [[nodiscard]] auto getVersion() const { return m_version; }
-  [[nodiscard]] auto isImported() const { return m_type == Type::Imported; }
-  [[nodiscard]] auto isTransient() const { return m_type == Type::Transient; }
+  auto getId() const { return m_id; }
+  auto getVersion() const { return m_version; }
+  auto isImported() const { return m_type == Type::Imported; }
+  auto isTransient() const { return m_type == Type::Transient; }
 
-  template <typename T> [[nodiscard]] T &get();
+  template <typename T> T &get();
   template <typename T>
-  [[nodiscard]] const typename T::Desc &getDescriptor() const;
+  const typename T::Desc &getDescriptor() const;
 
 private:
   template <typename T>
@@ -57,7 +56,7 @@ private:
     T resource;
   };
 
-  template <typename T> [[nodiscard]] auto *_getModel() const;
+  template <typename T> auto *_getModel() const;
 
 private:
   const Type m_type;

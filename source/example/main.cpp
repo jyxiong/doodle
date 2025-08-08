@@ -44,14 +44,14 @@ struct FrameGraphTexture {
 };
 
 constexpr auto markAsExecuted = [](const auto &data,
-                                   const FrameGraphPassResources &,
+                                   const PassResources &,
                                    void *) { data.executed = true; };
 
 void test0() {
   FrameGraph fg;
   fg.addCallbackPass(
       "Dummy", [](const FrameGraph::Builder &, auto &) {},
-      [](const auto &, const FrameGraphPassResources &, void *) {});
+      [](const auto &, const PassResources &, void *) {});
 
   return;
 }
@@ -77,7 +77,7 @@ void test1() {
 
         builder.setSideEffect();
       },
-      [](const TestPass &data, FrameGraphPassResources &resources, void *) {
+      [](const TestPass &data, PassResources &resources, void *) {
         CHECK(resources.get<FrameGraphTexture>(data.foo).id == 1);
         CHECK(resources.get<FrameGraphTexture>(data.bar).id == 2);
 
@@ -112,7 +112,7 @@ void test2() {
         REQUIRE(fg.isValid(data.backbuffer));
         REQUIRE_FALSE(fg.isValid(temp));
       },
-      [](const TestPass &data, FrameGraphPassResources &resources, void *) {
+      [](const TestPass &data, PassResources &resources, void *) {
         CHECK(resources.get<FrameGraphTexture>(data.backbuffer).id ==
               kBackbufferId);
         data.executed = true;
@@ -144,8 +144,7 @@ void test3() {
   auto &pass2 = fg.addCallbackPass<PassData>(
       "Pass2",
       [&fg, &pass1](FrameGraph::Builder &builder, PassData &data) {
-        constexpr auto kTestFlag = 1;
-        data.foo = builder.write(builder.read(pass1.foo, kTestFlag), kTestFlag);
+        data.foo = builder.write(builder.read(pass1.foo));
         REQUIRE_FALSE(fg.isValid(pass1.foo));
         REQUIRE(fg.isValid(data.foo));
 

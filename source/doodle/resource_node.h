@@ -14,8 +14,8 @@ public:
   ResourceNode &operator=(const ResourceNode &) = delete;
   ResourceNode &operator=(ResourceNode &&) noexcept = delete;
 
-  [[nodiscard]] auto getResourceId() const { return m_resourceId; }
-  [[nodiscard]] auto getVersion() const { return m_version; }
+  auto getResourceId() const { return m_resourceId; }
+  auto getVersion() const { return m_version; }
 
 private:
   ResourceNode(const std::string_view name, uint32_t nodeId,

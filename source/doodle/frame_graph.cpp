@@ -19,11 +19,11 @@ bool FrameGraph::isValid(ResourceId id) const {
 void FrameGraph::compile() {
   for (auto &pass : m_passNodes) {
     pass.m_refCount = static_cast<int32_t>(pass.m_writes.size());
-    for (const auto [id, _] : pass.m_reads) {
+    for (const auto id : pass.m_reads) {
       auto &consumed = m_resourceNodes[id];
       consumed.m_refCount++;
     }
-    for (const auto [id, _] : pass.m_writes) {
+    for (const auto id : pass.m_writes) {
       auto &written = m_resourceNodes[id];
       written.m_producer = &pass;
     }
@@ -45,7 +45,7 @@ void FrameGraph::compile() {
 
     assert(producer->m_refCount >= 1);
     if (--producer->m_refCount == 0) {
-      for (const auto [id, _] : producer->m_reads) {
+      for (const auto id : producer->m_reads) {
         auto &node = m_resourceNodes[id];
         if (--node.m_refCount == 0)
           unreferencedResources.push(&node);
@@ -61,9 +61,9 @@ void FrameGraph::compile() {
 
     for (const auto id : pass.m_creates)
       _getResourceEntry(id).m_producer = &pass;
-    for (const auto [id, _] : pass.m_writes)
+    for (const auto id : pass.m_writes)
       _getResourceEntry(id).m_last = &pass;
-    for (const auto [id, _] : pass.m_reads)
+    for (const auto id : pass.m_reads)
       _getResourceEntry(id).m_last = &pass;
   }
 }
@@ -75,7 +75,7 @@ void FrameGraph::execute(void *context, void *allocator) {
     for (const auto id : pass.m_creates)
       _getResourceEntry(id).create(allocator);
 
-    FrameGraphPassResources resources{*this, pass};
+    PassResources resources{*this, pass};
     std::invoke(*pass.m_exec, resources, context);
 
     for (auto &entry : m_resourceRegistry) {
@@ -127,30 +127,43 @@ FrameGraph::_getResourceEntry(const ResourceNode &node) const {
   return m_resourceRegistry[node.m_resourceId];
 }
 
+ResourceNode &FrameGraph::_getResourceNode(ResourceId id) {
+  assert(id < m_resourceNodes.size());
+  return m_resourceNodes[id];
+}
+ResourceEntry &
+FrameGraph::_getResourceEntry(ResourceId id) {
+  return _getResourceEntry(_getResourceNode(id));
+}
+ResourceEntry &
+FrameGraph::_getResourceEntry(const ResourceNode &node) {
+  assert(node.m_resourceId < m_resourceRegistry.size());
+  return m_resourceRegistry[node.m_resourceId];
+}
+
+
 //
 // FrameGraph::Builder class:
 //
 
-ResourceId FrameGraph::Builder::read(ResourceId id,
-                                             uint32_t flags) {
+ResourceId FrameGraph::Builder::read(ResourceId id) {
   assert(m_frameGraph.isValid(id));
-  return m_passNode._read(id, flags);
+  return m_passNode.m_reads.emplace_back(id);
 }
-ResourceId FrameGraph::Builder::write(ResourceId id,
-                                              uint32_t flags) {
+ResourceId FrameGraph::Builder::write(ResourceId id) {
   assert(m_frameGraph.isValid(id));
   if (m_frameGraph._getResourceEntry(id).isImported())
     setSideEffect();
 
   if (m_passNode.creates(id)) {
-    return m_passNode._write(id, flags);
+    return m_passNode.m_writes.emplace_back(id);
   } else {
     // Writing to a texture produces a renamed handle.
     // This allows us to catch errors when resources are modified in
     // undefined order (when same resource is written by different passes).
     // Renaming resources enforces a specific execution order of the render
     // passes.
-    m_passNode._read(id, kFlagsIgnored);
-    return m_passNode._write(m_frameGraph._clone(id), flags);
+    m_passNode.m_reads.emplace_back(id);
+    return m_passNode.m_writes.emplace_back(m_frameGraph._clone(id));
   }
 }

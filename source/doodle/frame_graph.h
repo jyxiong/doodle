@@ -14,11 +14,8 @@ concept Virtualizable = requires(T t) {
   { t.destroy(typename T::Desc{}, (void *)nullptr) } -> std::same_as<void>;
 };
 
-#define _VIRTUALIZABLE_CONCEPT(T) Virtualizable T
-#define _VIRTUALIZABLE_CONCEPT_IMPL(T) _VIRTUALIZABLE_CONCEPT(T)
-
 class FrameGraph {
-  friend class FrameGraphPassResources;
+  friend class PassResources;
 
 public:
   FrameGraph() = default;
@@ -41,19 +38,16 @@ public:
     Builder &operator=(const Builder &) = delete;
     Builder &operator=(Builder &&) noexcept = delete;
 
-    template <_VIRTUALIZABLE_CONCEPT(T)>
+    template <Virtualizable T>
     /** Declares the creation of a resource. */
-    [[nodiscard]] ResourceId create(const std::string_view name,
-                                            const typename T::Desc &);
+    ResourceId create(const std::string_view name, const typename T::Desc &);
     /** Declares read operation. */
-    ResourceId read(ResourceId id,
-                            uint32_t flags = kFlagsIgnored);
+    ResourceId read(ResourceId id);
     /**
      * Declares write operation.
      * @remark Writing to imported resource counts as side-effect.
      */
-    [[nodiscard]] ResourceId write(ResourceId id,
-                                           uint32_t flags = kFlagsIgnored);
+    ResourceId write(ResourceId id);
 
     /** Ensures that this pass is not culled during the compilation phase. */
     Builder &setSideEffect() {
@@ -83,59 +77,43 @@ public:
   const Data &addCallbackPass(const std::string_view name, Setup &&setup,
                               Execute &&exec);
 
-  template <_VIRTUALIZABLE_CONCEPT(T)>
-  [[nodiscard]] const typename T::Desc &
-  getDescriptor(ResourceId id) const;
+  template <Virtualizable T>
+  const typename T::Desc &getDescriptor(ResourceId id) const;
 
-  template <_VIRTUALIZABLE_CONCEPT(T)>
+  template <Virtualizable T>
   /** Imports the given resource T into FrameGraph. */
-  [[nodiscard]] ResourceId import(const std::string_view name,
-                                          const typename T::Desc &, T &&);
+  ResourceId import(const std::string_view name, const typename T::Desc &,
+                    T &&);
 
   /** @return True if the given resource is valid for read/write operation. */
-  [[nodiscard]] bool isValid(ResourceId id) const;
+  bool isValid(ResourceId id) const;
 
   /** Culls unreferenced resources and passes. */
   void compile();
   /** Invokes execution callbacks. */
   void execute(void *context = nullptr, void *allocator = nullptr);
 
-
 private:
-  [[nodiscard]] PassNode &
-  _createPassNode(const std::string_view name,
-                  std::unique_ptr<FrameGraphPassConcept> &&);
+  PassNode &_createPassNode(const std::string_view name,
+                            std::unique_ptr<FrameGraphPassConcept> &&);
 
-  template <_VIRTUALIZABLE_CONCEPT(T)>
-  [[nodiscard]] ResourceId _create(const ResourceEntry::Type,
-                                           const std::string_view name,
-                                           const typename T::Desc &, T &&);
+  template <Virtualizable T>
+  ResourceId _create(const ResourceEntry::Type, const std::string_view name,
+                     const typename T::Desc &, T &&);
 
-  [[nodiscard]] ResourceNode &
+  ResourceNode &
   _createResourceNode(const std::string_view name, uint32_t resourceId,
                       uint32_t version = ResourceEntry::kInitialVersion);
   /** Increments ResourceEntry version and produces a renamed handle. */
-  [[nodiscard]] ResourceId _clone(ResourceId id);
+  ResourceId _clone(ResourceId id);
 
-  [[nodiscard]] const ResourceNode &
-  _getResourceNode(ResourceId id) const;
-  [[nodiscard]] const ResourceEntry &
-  _getResourceEntry(ResourceId id) const;
-  [[nodiscard]] const ResourceEntry &
-  _getResourceEntry(const ResourceNode &) const;
+  const ResourceNode &_getResourceNode(ResourceId id) const;
+  const ResourceEntry &_getResourceEntry(ResourceId id) const;
+  const ResourceEntry &_getResourceEntry(const ResourceNode &) const;
 
-  [[nodiscard]] decltype(auto) _getResourceNode(ResourceId id) {
-    return const_cast<ResourceNode &>(
-        const_cast<const FrameGraph *>(this)->_getResourceNode(id));
-  }
-  [[nodiscard]] decltype(auto) _getResourceEntry(ResourceId id) {
-    return const_cast<ResourceEntry &>(
-        const_cast<const FrameGraph *>(this)->_getResourceEntry(id));
-  }
-  [[nodiscard]] decltype(auto) _getResourceEntry(const ResourceNode &node) {
-    return const_cast<ResourceEntry &>(
-        const_cast<const FrameGraph *>(this)->_getResourceEntry(node));
-  }
+  ResourceNode &_getResourceNode(ResourceId id);
+  ResourceEntry &_getResourceEntry(ResourceId id);
+  ResourceEntry &_getResourceEntry(const ResourceNode & node);
 
 private:
   std::vector<PassNode> m_passNodes;
@@ -143,32 +121,30 @@ private:
   std::vector<ResourceEntry> m_resourceRegistry;
 };
 
-class FrameGraphPassResources {
+class PassResources {
   friend class FrameGraph;
 
 public:
-  FrameGraphPassResources() = delete;
-  FrameGraphPassResources(const FrameGraphPassResources &) = delete;
-  FrameGraphPassResources(FrameGraphPassResources &&) noexcept = delete;
-  ~FrameGraphPassResources() = default;
+  PassResources() = delete;
+  PassResources(const PassResources &) = delete;
+  PassResources(PassResources &&) noexcept = delete;
+  ~PassResources() = default;
 
-  FrameGraphPassResources &operator=(const FrameGraphPassResources &) = delete;
-  FrameGraphPassResources &
-  operator=(FrameGraphPassResources &&) noexcept = delete;
+  PassResources &operator=(const PassResources &) = delete;
+  PassResources &
+  operator=(PassResources &&) noexcept = delete;
 
   /**
    * @note Causes runtime-error with:
    * - Attempt to use obsolete handle (the one that has been renamed before)
    * - Incorrect resource type T
    */
-  template <_VIRTUALIZABLE_CONCEPT(T)>
-  [[nodiscard]] T &get(ResourceId id);
-  template <_VIRTUALIZABLE_CONCEPT(T)>
-  [[nodiscard]] const typename T::Desc &
-  getDescriptor(ResourceId id) const;
+  template <Virtualizable T> T &get(ResourceId id);
+  template <Virtualizable T>
+  const typename T::Desc &getDescriptor(ResourceId id) const;
 
 private:
-  FrameGraphPassResources(FrameGraph &fg, const PassNode &node)
+  PassResources(FrameGraph &fg, const PassNode &node)
       : m_frameGraph{fg}, m_passNode{node} {}
 
 private:
@@ -182,7 +158,7 @@ inline const Data &FrameGraph::addCallbackPass(const std::string_view name,
   static_assert(std::is_invocable_v<Setup, Builder &, Data &>,
                 "Invalid setup callback");
   static_assert(std::is_invocable_v<Execute, const Data &,
-                                    FrameGraphPassResources &, void *>,
+                                    PassResources &, void *>,
                 "Invalid exec callback");
   static_assert(sizeof(Execute) < 1024, "Execute captures too much");
 
@@ -194,16 +170,15 @@ inline const Data &FrameGraph::addCallbackPass(const std::string_view name,
   return pass->data;
 }
 
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
-inline const typename T::Desc &
-FrameGraph::getDescriptor(ResourceId id) const {
+template <Virtualizable T>
+inline const typename T::Desc &FrameGraph::getDescriptor(ResourceId id) const {
   return _getResourceEntry(id).getDescriptor<T>();
 }
 
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
+template <Virtualizable T>
 inline ResourceId FrameGraph::import(const std::string_view name,
-                                             const typename T::Desc &desc,
-                                             T &&resource) {
+                                     const typename T::Desc &desc,
+                                     T &&resource) {
   return _create<T>(ResourceEntry::Type::Imported, name, desc,
                     std::forward<T>(resource));
 }
@@ -212,7 +187,7 @@ inline ResourceId FrameGraph::import(const std::string_view name,
 // (private):
 //
 
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
+template <Virtualizable T>
 inline ResourceId
 FrameGraph::_create(const ResourceEntry::Type type, const std::string_view name,
                     const typename T::Desc &desc, T &&resource) {
@@ -226,28 +201,27 @@ FrameGraph::_create(const ResourceEntry::Type type, const std::string_view name,
 // FrameGraph::Builder class:
 //
 
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
-inline ResourceId
-FrameGraph::Builder::create(const std::string_view name,
-                            const typename T::Desc &desc) {
+template <Virtualizable T>
+inline ResourceId FrameGraph::Builder::create(const std::string_view name,
+                                              const typename T::Desc &desc) {
   const auto id =
       m_frameGraph._create<T>(ResourceEntry::Type::Transient, name, desc, T{});
   return m_passNode.m_creates.emplace_back(id);
 }
 
 //
-// FrameGraphPassResources class:
+// PassResources class:
 //
 
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
-inline T &FrameGraphPassResources::get(ResourceId id) {
+template <Virtualizable T>
+inline T &PassResources::get(ResourceId id) {
   assert(m_passNode.reads(id) || m_passNode.creates(id) ||
          m_passNode.writes(id));
   return m_frameGraph._getResourceEntry(id).get<T>();
 }
-template <_VIRTUALIZABLE_CONCEPT_IMPL(T)>
+template <Virtualizable T>
 inline const typename T::Desc &
-FrameGraphPassResources::getDescriptor(ResourceId id) const {
+PassResources::getDescriptor(ResourceId id) const {
   assert(m_passNode.reads(id) || m_passNode.creates(id) ||
          m_passNode.writes(id));
   return m_frameGraph.getDescriptor<T>(id);
