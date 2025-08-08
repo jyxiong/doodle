@@ -11,7 +11,7 @@ void FrameGraph::reserve(uint32_t numPasses, uint32_t numResources) {
   m_resourceRegistry.reserve(numResources);
 }
 
-bool FrameGraph::isValid(ResourceId id) const {
+bool FrameGraph::isValid(NodeId id) const {
   const auto &node = _getResourceNode(id);
   return node.getVersion() == _getResourceEntry(node).getVersion();
 }
@@ -92,18 +92,19 @@ void FrameGraph::execute(void *context, void *allocator) {
 PassNode &
 FrameGraph::_createPassNode(const std::string_view name,
                             std::unique_ptr<FrameGraphPassConcept> &&base) {
-  const auto id = static_cast<uint32_t>(m_passNodes.size());
-  return m_passNodes.emplace_back(PassNode{name, id, std::move(base)});
+  const auto nodeId = static_cast<NodeId>(m_passNodes.size());
+  return m_passNodes.emplace_back(PassNode{name, nodeId, std::move(base)});
 }
 
 ResourceNode &FrameGraph::_createResourceNode(const std::string_view name,
                                               uint32_t resourceId,
                                               uint32_t version) {
-  const auto id = static_cast<uint32_t>(m_resourceNodes.size());
+  const auto nodeId = static_cast<uint32_t>(m_resourceNodes.size());
   return m_resourceNodes.emplace_back(
-      ResourceNode{name, id, resourceId, version});
+      ResourceNode{name, nodeId, resourceId, version});
 }
-ResourceId FrameGraph::_clone(ResourceId id) {
+
+NodeId FrameGraph::_clone(NodeId id) {
   const auto &node = _getResourceNode(id);
   auto &entry = _getResourceEntry(node);
   entry.m_version++;
@@ -113,12 +114,12 @@ ResourceId FrameGraph::_clone(ResourceId id) {
   return clone.getId();
 }
 
-const ResourceNode &FrameGraph::_getResourceNode(ResourceId id) const {
+const ResourceNode &FrameGraph::_getResourceNode(NodeId id) const {
   assert(id < m_resourceNodes.size());
   return m_resourceNodes[id];
 }
 const ResourceEntry &
-FrameGraph::_getResourceEntry(ResourceId id) const {
+FrameGraph::_getResourceEntry(NodeId id) const {
   return _getResourceEntry(_getResourceNode(id));
 }
 const ResourceEntry &
@@ -127,12 +128,12 @@ FrameGraph::_getResourceEntry(const ResourceNode &node) const {
   return m_resourceRegistry[node.m_resourceId];
 }
 
-ResourceNode &FrameGraph::_getResourceNode(ResourceId id) {
+ResourceNode &FrameGraph::_getResourceNode(NodeId id) {
   assert(id < m_resourceNodes.size());
   return m_resourceNodes[id];
 }
 ResourceEntry &
-FrameGraph::_getResourceEntry(ResourceId id) {
+FrameGraph::_getResourceEntry(NodeId id) {
   return _getResourceEntry(_getResourceNode(id));
 }
 ResourceEntry &
@@ -146,11 +147,11 @@ FrameGraph::_getResourceEntry(const ResourceNode &node) {
 // FrameGraph::Builder class:
 //
 
-ResourceId FrameGraph::Builder::read(ResourceId id) {
+NodeId FrameGraph::Builder::read(NodeId id) {
   assert(m_frameGraph.isValid(id));
   return m_passNode.m_reads.emplace_back(id);
 }
-ResourceId FrameGraph::Builder::write(ResourceId id) {
+NodeId FrameGraph::Builder::write(NodeId id) {
   assert(m_frameGraph.isValid(id));
   if (m_frameGraph._getResourceEntry(id).isImported())
     setSideEffect();

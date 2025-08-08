@@ -41,20 +41,20 @@ public:
 
     /** Declares the creation of a resource. */
     template <Virtualizable T>
-    ResourceId create(const std::string_view name,
+    NodeId create(const std::string_view name,
                                       const typename T::Desc &desc) {
-      const auto id = m_frameGraph._create<T>(ResourceEntry::Type::Transient,
+      const auto nodeId = m_frameGraph._create<T>(ResourceEntry::Type::Transient,
                                               name, desc, T{});
-      return m_passNode.m_creates.emplace_back(id);
+      return m_passNode.m_creates.emplace_back(nodeId);
     }
 
     /** Declares read operation. */
-    ResourceId read(ResourceId id);
+    NodeId read(NodeId id);
     /**
      * Declares write operation.
      * @remark Writing to imported resource counts as side-effect.
      */
-    ResourceId write(ResourceId id);
+    NodeId write(NodeId id);
 
     /** Ensures that this pass is not culled during the compilation phase. */
     Builder &setSideEffect() {
@@ -98,21 +98,21 @@ public:
   }
 
   template <Virtualizable T>
-  const typename T::Desc &getDescriptor(ResourceId id) const {
+  const typename T::Desc &getDescriptor(NodeId id) const {
     return _getResourceEntry(id).getDescriptor<T>();
   }
 
   /** Imports the given resource T into FrameGraph. */
 
   template <Virtualizable T>
-  ResourceId import(const std::string_view name, const typename T::Desc &desc,
+  NodeId import(const std::string_view name, const typename T::Desc &desc,
                     T &&resource) {
     return _create<T>(ResourceEntry::Type::Imported, name, desc,
                       std::forward<T>(resource));
   }
 
   /** @return True if the given resource is valid for read/write operation. */
-  bool isValid(ResourceId id) const;
+  bool isValid(NodeId id) const;
 
   /** Culls unreferenced resources and passes. */
   void compile();
@@ -124,7 +124,7 @@ private:
                             std::unique_ptr<FrameGraphPassConcept> &&);
 
   template <Virtualizable T>
-  inline ResourceId _create(const ResourceEntry::Type type,
+  NodeId _create(const ResourceEntry::Type type,
                             const std::string_view name,
                             const typename T::Desc &desc, T &&resource) {
     const auto resourceId = static_cast<uint32_t>(m_resourceRegistry.size());
@@ -136,15 +136,16 @@ private:
   ResourceNode &
   _createResourceNode(const std::string_view name, uint32_t resourceId,
                       uint32_t version = ResourceEntry::kInitialVersion);
-  /** Increments ResourceEntry version and produces a renamed handle. */
-  ResourceId _clone(ResourceId id);
+  
+                      /** Increments ResourceEntry version and produces a renamed handle. */
+  NodeId _clone(NodeId id);
 
-  const ResourceNode &_getResourceNode(ResourceId id) const;
-  const ResourceEntry &_getResourceEntry(ResourceId id) const;
+  const ResourceNode &_getResourceNode(NodeId id) const;
+  const ResourceEntry &_getResourceEntry(NodeId id) const;
   const ResourceEntry &_getResourceEntry(const ResourceNode &) const;
 
-  ResourceNode &_getResourceNode(ResourceId id);
-  ResourceEntry &_getResourceEntry(ResourceId id);
+  ResourceNode &_getResourceNode(NodeId id);
+  ResourceEntry &_getResourceEntry(NodeId id);
   ResourceEntry &_getResourceEntry(const ResourceNode &node);
 
 private:
@@ -171,14 +172,14 @@ public:
    * - Incorrect resource type T
    */
   template <Virtualizable T> 
-  T &get(ResourceId id) {
+  T &get(NodeId id) {
     assert(m_passNode.reads(id) || m_passNode.creates(id) ||
            m_passNode.writes(id));
     return m_frameGraph._getResourceEntry(id).get<T>();
   }
 
   template <Virtualizable T>
-  const typename T::Desc &getDescriptor(ResourceId id) const {
+  const typename T::Desc &getDescriptor(NodeId id) const {
     assert(m_passNode.reads(id) || m_passNode.creates(id) ||
            m_passNode.writes(id));
     return m_frameGraph.getDescriptor<T>(id);

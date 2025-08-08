@@ -66,8 +66,8 @@ void test1() {
   FrameGraph fg;
 
   struct TestPass {
-    ResourceId foo;
-    ResourceId bar;
+    NodeId foo;
+    NodeId bar;
     mutable bool executed{false};
   };
   auto &testPass = fg.addCallbackPass<TestPass>(
@@ -107,7 +107,7 @@ void test2() {
   REQUIRE(fg.isValid(backbuffer));
 
   struct TestPass {
-    ResourceId backbuffer;
+    NodeId backbuffer;
     mutable bool executed{false};
   };
   auto &testPass = fg.addCallbackPass<TestPass>(
@@ -136,7 +136,7 @@ void test3() {
   FrameGraph fg;
 
   struct PassData {
-    ResourceId foo;
+    NodeId foo;
     mutable bool executed{false};
   };
   auto &pass1 = fg.addCallbackPass<PassData>(
@@ -193,7 +193,7 @@ void test5() {
   const auto &desc = fg.getDescriptor<FrameGraphTexture>(backbufferId);
 
   struct DepthPass {
-    ResourceId depth;
+    NodeId depth;
     mutable bool executed{false};
   };
   auto &depthPass = fg.addCallbackPass<DepthPass>(
@@ -205,10 +205,10 @@ void test5() {
       markAsExecuted);
 
   struct GBufferPass {
-    ResourceId depth;
-    ResourceId position;
-    ResourceId normal;
-    ResourceId albedo;
+    NodeId depth;
+    NodeId position;
+    NodeId normal;
+    NodeId albedo;
 
     mutable bool executed{false};
   };
@@ -229,10 +229,10 @@ void test5() {
       markAsExecuted);
 
   struct LightingPass {
-    ResourceId position;
-    ResourceId normal;
-    ResourceId albedo;
-    ResourceId output;
+    NodeId position;
+    NodeId normal;
+    NodeId albedo;
+    NodeId output;
     mutable bool executed{false};
   };
   auto &lightingPass = fg.addCallbackPass<LightingPass>(

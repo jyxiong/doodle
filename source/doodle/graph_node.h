@@ -2,6 +2,8 @@
 
 #include <string>
 
+using NodeId = uint32_t;
+
 class GraphNode {
   friend class FrameGraph;
 
@@ -13,16 +15,16 @@ public:
   GraphNode &operator=(const GraphNode &) = delete;
   GraphNode &operator=(GraphNode &&) noexcept = delete;
 
-  auto getId() const { return m_id; }
+  NodeId getId() const { return m_id; }
   std::string_view getName() const { return m_name; }
-  auto getRefCount() const { return m_refCount; }
+  int32_t getRefCount() const { return m_refCount; }
 
 protected:
-  GraphNode(const std::string_view name, uint32_t id)
+  GraphNode(const std::string_view name, NodeId id)
       : m_name{name}, m_id{id} {}
 
 private:
   std::string m_name;
-  const uint32_t m_id;
+  const NodeId m_id;
   int32_t m_refCount{0};
 };

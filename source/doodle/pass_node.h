@@ -7,8 +7,6 @@
 #include "graph_node.h"
 #include "pass.h"
 
-using ResourceId = uint32_t;
-
 class PassNode final : public GraphNode {
   friend class FrameGraph;
 
@@ -19,9 +17,9 @@ public:
   PassNode &operator=(const PassNode &) = delete;
   PassNode &operator=(PassNode &&) noexcept = delete;
 
-  bool creates(ResourceId id) const;
-  bool reads(ResourceId id) const;
-  bool writes(ResourceId id) const;
+  bool creates(NodeId id) const;
+  bool reads(NodeId id) const;
+  bool writes(NodeId id) const;
 
   auto hasSideEffect() const { return m_hasSideEffect; }
   auto canExecute() const { return getRefCount() > 0 || hasSideEffect(); }
@@ -33,9 +31,9 @@ private:
 private:
   std::unique_ptr<FrameGraphPassConcept> m_exec;
 
-  std::vector<ResourceId> m_creates;
-  std::vector<ResourceId> m_reads;
-  std::vector<ResourceId> m_writes;
+  std::vector<NodeId> m_creates;
+  std::vector<NodeId> m_reads;
+  std::vector<NodeId> m_writes;
 
   bool m_hasSideEffect{false};
 };
