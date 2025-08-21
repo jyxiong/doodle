@@ -1,7 +1,7 @@
-#include "doodle/lib.h"
+#include "doodle/core/base/macro.h"
 
 int main()
 {
-  doodle::printHelloWorld();
+  LOG_INFO("Hello world!");
   return 0;
 }
