@@ -1,4 +1,4 @@
-#include "doodle/core/base/macro.h"
+#include "doodle/core/log_system.h"
 
 int main()
 {
