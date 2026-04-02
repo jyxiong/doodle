@@ -7,3 +7,9 @@
 [submodule "external/volk"]
 	path = external/volk
 	url = git@github.com:zeux/volk.git
+[submodule "external/entt"]
+	path = external/entt
+	url = git@github.com:skypjack/entt.git
+[submodule "external/glm"]
+	path = external/glm
+	url = git@github.com:g-truc/glm.git

@@ -2,6 +2,18 @@ set(EXTERNAL_DIR "External")
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+if(NOT TARGET EnTT)
+    add_subdirectory(entt)
+    set_target_properties(EnTT PROPERTIES FOLDER ${EXTERNAL_DIR}/entt)
+endif()
+
+if(NOT TARGET glm)
+    option(GLM_ENABLE_CXX_20 "" ON)
+    add_subdirectory(glm)
+    set_target_properties(glm PROPERTIES FOLDER ${EXTERNAL_DIR}/glm)
+    target_compile_definitions(glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
+endif()
+
 if(NOT TARGET spdlog)
     option(SPDLOG_BUILD_EXAMPLE "" OFF)
     option(SPDLOG_INSTALL "" OFF)
