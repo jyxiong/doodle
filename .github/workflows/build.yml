@@ -29,7 +29,7 @@ jobs:
       - name: Configure and build
         shell: pwsh
         run: |
-          cmake -B"build/windows" -G"Ninja" -DDOODLE_BUILD_EXAMPLES=OFF -DCMAKE_C_COMPILER_LAUNCHER=C:\\Users\\runneradmin\\.cargo\\bin\\sccache -DCMAKE_CXX_COMPILER_LAUNCHER=C:\\Users\\runneradmin\\.cargo\\bin\\sccache
+          cmake -B"build/windows" -G"Ninja" -DCMAKE_C_COMPILER_LAUNCHER=C:\\Users\\runneradmin\\.cargo\\bin\\sccache -DCMAKE_CXX_COMPILER_LAUNCHER=C:\\Users\\runneradmin\\.cargo\\bin\\sccache
           cmake --build "build/windows" --target doodle --config Release -j 1
 
   build_ubuntu:
@@ -51,5 +51,5 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}
       - name: Configure and build
         run: |
-          cmake -B"build/ubuntu" -DDOODLE_BUILD_EXAMPLES=OFF
+          cmake -B"build/ubuntu"
           cmake --build "build/ubuntu" --target doodle --config Release ${{ env.PARALLEL }}
