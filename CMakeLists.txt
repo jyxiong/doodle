@@ -11,4 +11,4 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_DEBUG_POSTFIX "d")
 
-# add_subdirectory(source)
+add_subdirectory(source)
