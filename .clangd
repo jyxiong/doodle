@@ -1,0 +1,49 @@
+# 项目默认配置：让 clangd 读取 build/compile_commands.json，
+# 并过滤掉它无法解析的 NVCC 专有参数。
+CompileFlags:
+  Compiler: clang++
+  CompilationDatabase: build
+  Add:
+    - -Wno-unknown-pragmas
+  Remove:
+    # NVCC / CUDA 专有 flag，真实编译由 nvcc 处理，clangd 仅做静态解析
+    - -forward-unknown-to-host-compiler
+    - --use_fast_math
+    - -arch=*
+    - --generate-code=*
+    - -gencode=*
+    - --extended-lambda
+    - --expt-extended-lambda
+    - --expt-relaxed-constexpr
+    - -Xcompiler*
+    - -Xfatbin*
+    - -Xcudafe*
+    - -rdc=*
+    - -ccbin*
+    - --compiler-options*
+    - --diag_suppress*
+
+---
+
+# 仅对 CUDA / CUH 文件启用的补充解析参数
+If:
+  PathMatch: .*\.cuh?$
+CompileFlags:
+  Add:
+    - -x
+    - cuda
+    - --cuda-path=/usr/local/cuda
+    # CUDA 13.x 中 Thrust/CUB/libcudacxx 位于 CCCL 目录下
+    - -I/usr/local/cuda/include
+    - -I/usr/local/cuda/include/cccl
+    # 放宽 clang 对部分 CUDA 扩展的诊断
+    - -Xclang=-fcuda-allow-variadic-functions
+    - -Wno-unknown-cuda-version
+    - --no-cuda-version-check
+
+Diagnostics:
+  Suppress:
+    - variadic_device_fn
+    - attributes_not_allowed
+    - template_param_shadow
+    - deduction_guide_target_attr
